@@ -35,7 +35,7 @@ bool first_print = true;                //flag per una sola trasmissione al disp
 volatile unsigned int enc = 0;          //contatore impulsi per gestione PID (durata 0,1 sec)
 volatile unsigned int enc2 = 0;         //contatore impulsi per rilevamento velocita (durata 1 sec)
 unsigned long vel_millis = 0;
-unsigned long pwm_millis = 0;
+unsigned long PID_millis = 0;
 unsigned long t = 0;
 int stato = 0;
 int pwm = 0 ;
@@ -94,7 +94,7 @@ void mainloop() {
   int valorePotenziometro = analogRead(potenziometroPin);
   vel_richiesta = map(valorePotenziometro, 0, 1023, 0, n_impulsi_PID); /////  n_impulsi_PID
 
-  if ( (millis() - pwm_millis) > t_PID) {
+  if ( (millis() - PID_millis) > t_PID) {
 
     if (vel_richiesta > enc) {
       pwm = pwm + (vel_richiesta - enc);
@@ -135,7 +135,7 @@ void mainloop() {
       display.display();
     }
 
-    pwm_millis = millis();
+    PID_millis = millis();
     enc = 0;
     
   }
