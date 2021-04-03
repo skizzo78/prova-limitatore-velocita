@@ -57,7 +57,7 @@ void setup() {
   pinMode(8, INPUT_PULLUP);             //pin programmazione
   pinMode(2, INPUT_PULLUP);             //pin encoder
   pinMode(pwmPin, OUTPUT);              //pin pwm
-  attachInterrupt(0, ai0, RISING);
+  attachInterrupt(0, ai0, RISING);      //interrupt per impulsi encoder
  
   if (digitalRead (8) == 0) {
     stato = 1;
