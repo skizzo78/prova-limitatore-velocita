@@ -40,7 +40,6 @@ unsigned long t = 0;
 int stato = 0;             //variabile per navigazione nei menu
 int pwm = 0 ;
 int vel_richiesta = 0 ;
-int velocita = 0;
 float velocita_m_s = 0;
 
 
@@ -144,8 +143,8 @@ void mainloop() {
   
   if ( (millis() - vel_millis) > 1000) {
 
-    velocita = map (enc2 , 0 , n_impulsi , 0 , 2000 );    // n_impulsi (145) motore ADV
-    velocita_m_s = ((float)velocita / 1000 );
+    int velocita_mm_s = map (enc2 , 0 , n_impulsi , 0 , 2000 );    // n_impulsi (145) motore ADV
+    velocita_m_s = ((float)velocita_mm_s / 1000 );
     vel_millis = millis();
     enc2 = 0;
   
