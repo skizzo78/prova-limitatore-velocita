@@ -31,7 +31,7 @@ Adafruit_SSD1306 display(128, 32 , &Wire, 4);
 #define t_step 150                      //tempo variazione step velocita
 #define t_PID 100                       //tempo aggiornamento pid in msec
 #define n_impulsi_PID 15                //circa 1/10 di n_impulsi per scala max 2m/sec (con aggiornamento a 0,1 sec)
-int n_impulsi = EEPROM.readInt(0);      //circa 145 impulsi per fare 2 metri (motore adv)
+int n_impulsi = EEPROM.readInt(0);      //circa 145 impulsi per fare 2 metri (motore adv) (ridurre della meta per aggiornamento a 500ms)
 
 bool first_eeprom_read = true;          //flag per una sola lettora eeprom
 bool first_print = true;                //flag per una sola trasmissione al display
