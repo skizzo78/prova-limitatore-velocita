@@ -1,4 +1,4 @@
-// aggiornato tempo aggiornamento a 500 ms
+// aggiornato tempo aggiornamento a 500 ms   05/2023
 
 
 //    MOTORE PER PROVA LIMITATORI DI VELOCITA REGOLATO IN PWM CON RETROAZIONE TRAMITE ENCODER
