@@ -1,4 +1,4 @@
-// aggiornato tempo aggiornamento a 500 ms   05/2023
+// aggiornato il 05/2023
 
 
 //    MOTORE PER PROVA LIMITATORI DI VELOCITA REGOLATO IN PWM CON RETROAZIONE TRAMITE ENCODER
@@ -6,7 +6,6 @@
 //encoder = collegare canale A su pin digitale 2
 //driver l298n  ingresso pwm = pin 9 arduino
 //display oled ssd1306   scl=pin A5   sda=pinA4
-//potenziometro pin anolog 0 arduino
 //calcolo 145 impulsi encoder per 2 metri (motore ADV)
 //pin 7 & 8 per programmazione/velocita
 
@@ -15,7 +14,7 @@
 #include <EEPROMex.h>
 #include <Wire.h>
 #include <Adafruit_GFX.h>
- #include <Adafruit_SSD1306.h>
+#include <Adafruit_SSD1306.h>
 Adafruit_SSD1306 display(128, 32 , &Wire, 4);
 
 #define disp1 display.clearDisplay(); display.setTextColor(WHITE); display.setTextSize(1);
@@ -26,21 +25,21 @@ Adafruit_SSD1306 display(128, 32 , &Wire, 4);
 #define up 7
 #define down 8
 #define pwmPin 9
-#define potenziometroPin A0
 #define debounce_delay 2000
-#define t_step 150                      //tempo variazione step velocita
+#define t_step 500                      //tempo debaunce pulsanti
 #define t_PID 100                       //tempo aggiornamento pid in msec
 #define n_impulsi_PID 15                //circa 1/10 di n_impulsi per scala max 2m/sec (con aggiornamento a 0,1 sec)
 int n_impulsi = EEPROM.readInt(0);      //circa 145 impulsi per fare 2 metri (motore adv) (ridurre della meta per aggiornamento a 500ms)
+int Kp = EEPROM.readInt(3);              //proporzionale PID
 
 bool first_eeprom_read = true;          //flag per una sola lettora eeprom
 bool first_print = true;                //flag per una sola trasmissione al display
-bool first_step = true;                 //flag per aumento step velocita
+bool first_step = true;                 //flag per debaunce pulsanti
 volatile unsigned int enc = 0;          //contatore impulsi per gestione PID (durata 0,1 sec)
 volatile unsigned int enc2 = 0;         //contatore impulsi per rilevamento velocita (durata 1 sec)
 unsigned long vel_millis = 0;
 unsigned long PID_millis = 0;
-unsigned long t = 0;
+unsigned long t = 0;                    //millis per debounce
 int stato = 0;
 int pwm = 0 ;
 int vel_richiesta = 0 ;
@@ -84,7 +83,11 @@ void loop() {
     case 21: menu_prog_up_sub(); break;
     case 3: menu_prog_down(); break;
     case 31: menu_prog_down_sub(); break;
-    case 4: menu_prog_save(); break;
+    case 4: menu_prog_up_pid(); break;
+    case 41: menu_prog_up_pid_sub(); break;
+    case 5: menu_prog_down_pid(); break;
+    case 51: menu_prog_down_pid_sub(); break;
+    case 6: menu_prog_save(); break;
   }
 }
 
@@ -92,37 +95,35 @@ void mainloop() {
 
   if (first_eeprom_read == true) {
     n_impulsi = EEPROM.readInt(0);
+    Kp = EEPROM.readInt(3);
     first_eeprom_read = false;
   }
 
 
   if ( digitalRead(up) == 0 && first_step == true) {
+    vel_richiesta = ++ vel_richiesta;
+
     t = millis();
     first_step = false;
   }
-  if (( digitalRead(up) == 0)) {
-    if ( (millis() - t) > t_step) {
-      vel_richiesta = ++ vel_richiesta;
-      first_step = true;
-    }
-  }
 
+  if ( (millis() - t) > t_step) {
+    first_step = true;
+  }
 
 
   if ( digitalRead(down) == 0 && first_step == true) {
+    vel_richiesta = -- vel_richiesta;
+
     t = millis();
     first_step = false;
   }
-  if (( digitalRead(down) == 0)) {
-    if ( (millis() - t) > t_step) {
-      vel_richiesta = -- vel_richiesta;
-      first_step = true;
-    }
-  }
 
-  if (( digitalRead(up) == 1 ) && ( digitalRead(down) == 1 )) {
+  if ( (millis() - t) > t_step) {
     first_step = true;
   }
+
+
 
   vel_richiesta = constrain(vel_richiesta , 0, 16);
 
@@ -131,10 +132,10 @@ void mainloop() {
   if ( (millis() - PID_millis) > t_PID) {
 
     if (vel_richiesta > enc) {
-      pwm = pwm + (vel_richiesta - enc);
+      pwm = pwm + (( vel_richiesta - enc) * Kp);
     }
     if (vel_richiesta <= enc ) {
-      pwm = pwm - (enc - vel_richiesta);
+      pwm = pwm - ((enc - vel_richiesta) * Kp);
     }
 
     pwm = constrain(pwm , 0, 255);
@@ -145,26 +146,6 @@ void mainloop() {
     analogWrite(pwmPin, pwm);
 
 
-    /*   if (digitalRead(8) == 0) {
-        display.clearDisplay(); display.setTextSize(1); display.setTextColor(WHITE);
-        display.setCursor(0, 0); display.print("pwm %");
-        display.setCursor(60, 0); display.println(map(pwm , 0, 255, 0, 100));
-        display.setCursor(0, 7); display.print("v_ric");
-        display.setCursor(60, 7); display.println(vel_richiesta);
-        display.setCursor(0, 14); display.print("v_enc");
-        display.setCursor(60, 14); display.println(enc);
-        display.setCursor(0, 21); display.print("m/s");
-        display.setCursor(60, 21); display.println(velocita_m_s );
-        display.display();
-      }
-      else{}  */
-    disp4  display.setCursor(0, 2);
-    display.println(velocita_m_s);
-    display.setTextSize(1); display.setCursor(100, 22); display.print ("M/s");
-    display.setCursor(105, 10); display.println(vel_richiesta);
-    display.setCursor(122, 0); display.print("%");
-    display.setCursor(105, 0); display.println(map(pwm , 0, 255, 0, 100));
-    display.display();
 
 
     PID_millis = millis();
@@ -178,6 +159,17 @@ void mainloop() {
 
     int velocita_mm_s = map (enc2 , 0 , n_impulsi , 0 , 2000 );    // n_impulsi (145) motore ADV
     velocita_m_s = ((float)velocita_mm_s / 1000 );
+
+
+    disp4  display.setCursor(0, 2);
+    display.println(velocita_m_s);
+    display.setTextSize(1); display.setCursor(100, 22); display.print ("M/s");
+    display.setCursor(105, 10); display.println(vel_richiesta);
+    display.setCursor(122, 0); display.print("%");
+    display.setCursor(105, 0); display.println(map(pwm , 0, 255, 0, 100));
+    display.display();
+
+
     vel_millis = millis();
     enc2 = 0;
 
@@ -190,7 +182,7 @@ void mainloop() {
 void menu_prog_exit() {
 
   if (first_print == true) {
-    disp2; display.setCursor(0, 2); display.print("uscire");
+    disp2; display.setCursor(0, 2); display.print("esci senza salvare");
     display.display();
     first_print = false;
 
@@ -214,7 +206,7 @@ void menu_prog_exit() {
 void menu_prog_up() {
 
   if (first_print == true) {
-    disp2; display.setCursor(0, 2); display.print("aumenta");
+    disp2; display.setCursor(0, 2); display.print("diminuisciK_velocita");
     display.display();
     first_print = false;
 
@@ -252,7 +244,8 @@ void menu_prog_up_sub() {
 
 
   if (first_print == true) {
-    disp4; display.setCursor(0, 2); display.print(n_impulsi);
+    disp2; display.setCursor(0, 5); display.print(n_impulsi);
+    display.setCursor(35, 5); display.print("imp/gir");
     display.display();
     first_print = false;
   }
@@ -290,7 +283,9 @@ void menu_prog_down() {
 
 
   if (first_print == true) {
-    disp2; display.setCursor(0, 2); display.print("diminuisci");
+    disp2; display.setCursor(0, 2); display.print("aumenta   K_velocita");
+    //  disp2; display.setCursor(10, 2); display.print("K_encoder");
+
     display.display();
     first_print = false;
   }
@@ -329,7 +324,8 @@ void menu_prog_down_sub() {
 
 
   if (first_print == true) {
-    disp4; display.setCursor(0, 2); display.print(n_impulsi);
+    disp2; display.setCursor(0, 5); display.print(n_impulsi);
+    display.setCursor(35, 5); display.print("imp/gir");
     display.display();
     first_print = false;
   }
@@ -360,7 +356,151 @@ void menu_prog_down_sub() {
 }
 
 ///////////////////\\\\\\\\\\\\\\\\\\
+///////////////////\\\\\\\\\\\\\\\\\\
 
+void menu_prog_up_pid() {
+
+  if (first_print == true) {
+    disp2; display.setCursor(0, 2); display.print("aumenta   K_pid");
+    display.display();
+    first_print = false;
+
+  }
+
+
+
+  if ( digitalRead(8) == 0) {
+    t = millis();
+    while (( digitalRead(8) == 0)) {
+      if ( (millis() - t) > debounce_delay) {
+        first_print = false;
+        setStato(41);
+        disp4; display.setCursor(0, 2); display.print("wait");
+        display.display();
+        delay(2000);
+        break;
+      }
+    }
+  }
+
+
+
+  if (enc > 1) {
+    setStato(5);
+  }
+
+
+}
+
+///////////////////\\\\\\\\\\\\\\\\\\
+
+void menu_prog_up_pid_sub() {
+
+
+
+  if (first_print == true) {
+    disp4; display.setCursor(0, 2); display.print(Kp);
+    display.display();
+    first_print = false;
+  }
+
+  if (enc > 1) {
+    Kp = ++ Kp;
+    enc = 0 ;
+  }
+
+
+
+  if ( digitalRead(8) == 0) {
+    t = millis();
+    while (( digitalRead(8) == 0)) {
+      if ( (millis() - t) > debounce_delay) {
+        first_print = false;
+        setStato(4);
+        disp4; display.setCursor(0, 2); display.print("wait");
+        display.display();
+        delay(2000);
+        break;
+      }
+    }
+  }
+
+
+}
+///////////////////\\\\\\\\\\\\\\\\\\
+
+void menu_prog_down_pid() {
+
+  if (first_print == true) {
+    disp2; display.setCursor(0, 2); display.print("diminuisciK_pid");
+    display.display();
+    first_print = false;
+
+  }
+
+
+
+  if ( digitalRead(8) == 0) {
+    t = millis();
+    while (( digitalRead(8) == 0)) {
+      if ( (millis() - t) > debounce_delay) {
+        first_print = false;
+        setStato(51);
+        disp4; display.setCursor(0, 2); display.print("wait");
+        display.display();
+        delay(2000);
+        break;
+      }
+    }
+  }
+
+
+
+  if (enc > 1) {
+    setStato(6);
+  }
+
+
+}
+
+///////////////////\\\\\\\\\\\\\\\\\\
+
+void menu_prog_down_pid_sub() {
+
+
+
+  if (first_print == true) {
+    disp4; display.setCursor(0, 2); display.print(Kp);
+    display.display();
+    first_print = false;
+  }
+
+  if (enc > 1) {
+    Kp = -- Kp;
+    enc = 0 ;
+  }
+
+
+
+  if ( digitalRead(8) == 0) {
+    t = millis();
+    while (( digitalRead(8) == 0)) {
+      if ( (millis() - t) > debounce_delay) {
+        first_print = false;
+        setStato(5);
+        disp4; display.setCursor(0, 2); display.print("wait");
+        display.display();
+        delay(2000);
+        break;
+      }
+    }
+  }
+
+
+}
+
+///////////////////\\\\\\\\\\\\\\\\\\
+///////////////////\\\\\\\\\\\\\\\\\\
 
 void menu_prog_save() {
 
@@ -377,10 +517,12 @@ void menu_prog_save() {
     while (( digitalRead(8) == 0)) {
       if ( (millis() - t) > debounce_delay) {
         EEPROM.updateInt(0, n_impulsi);//145adv 3600 fly   dato provvisorio
+        EEPROM.updateInt(3, Kp);//proporzionale pid
         delay(100);
         disp2;
         display.setCursor(0, 2); display.print("salva");
         display.setCursor(70, 2); display.print(EEPROM.readInt(0));
+        display.setCursor(100, 2); display.print(EEPROM.readInt(3));
         display.display();
         delay(2000);
         setStato(0);
